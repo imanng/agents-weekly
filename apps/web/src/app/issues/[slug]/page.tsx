@@ -1,0 +1,101 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getAllIssues, getIssueBySlug, getSectionTitle } from "@/lib/issues";
+import type { IssueSection } from "@agents-weekly/shared";
+
+type Props = {
+  params: Promise<{ slug: string }>;
+};
+
+export function generateStaticParams() {
+  return getAllIssues().map((issue) => ({ slug: issue.slug }));
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const issue = getIssueBySlug(slug);
+
+  return {
+    title: issue ? `${issue.title} | Agents Weekly` : "Agents Weekly",
+    description: issue?.summary,
+  };
+}
+
+export default async function IssuePage({ params }: Props) {
+  const { slug } = await params;
+  const issue = getIssueBySlug(slug);
+
+  if (!issue) {
+    notFound();
+  }
+
+  return (
+    <main className="mx-auto min-h-screen max-w-5xl px-6 py-12 md:px-10">
+      <header className="border-b border-[#d9d4c8] pb-8">
+        <div className="flex flex-wrap gap-4 text-sm font-semibold text-[#a25c24]">
+          <Link className="underline-offset-4 hover:underline" href="/">
+            Agents Weekly
+          </Link>
+          <Link className="underline-offset-4 hover:underline" href="/archive">
+            Archive
+          </Link>
+        </div>
+        <p className="mt-8 text-sm font-semibold uppercase tracking-[0.16em] text-[#67736e]">
+          Issue #{issue.issueNumber} / {formatDate(issue.publishedAt)}
+        </p>
+        <h1 className="mt-3 max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">
+          {issue.title}
+        </h1>
+        <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5f6a64]">
+          {issue.summary}
+        </p>
+      </header>
+
+      <div className="py-8">
+        {Object.entries(issue.sections).map(([section, items]) => {
+          if (items.length === 0) return null;
+
+          return (
+            <section
+              className="border-b border-[#ded8ca] py-8 last:border-b-0"
+              key={section}
+            >
+              <h2 className="text-2xl font-semibold">
+                {getSectionTitle(section as IssueSection)}
+              </h2>
+              <div className="mt-5 space-y-5">
+                {items.map((item) => (
+                  <article className="rounded-lg bg-white p-5" key={item.url}>
+                    <a
+                      className="text-xl font-semibold text-[#173f35] underline-offset-4 hover:underline"
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      {item.title}
+                    </a>
+                    <p className="mt-2 text-sm font-semibold text-[#67736e]">
+                      {item.source}
+                    </p>
+                    <p className="mt-3 leading-7 text-[#4e5954]">
+                      {item.commentary}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </main>
+  );
+}
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(value));
+}
