@@ -1,14 +1,38 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import {
   getCandidateItems,
   getLatestIssue,
   getOrderedIssueSections,
   getSectionTitle,
 } from "@/lib/issues";
+import {
+  absoluteUrl,
+  defaultDescription,
+  defaultImage,
+  siteName,
+} from "@/lib/seo";
 
 const signupUrl = "https://www.beehiiv.com/";
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: siteName,
+    description: defaultDescription,
+    url: "/",
+    images: [defaultImage],
+  },
+  twitter: {
+    title: siteName,
+    description: defaultDescription,
+    images: [defaultImage.url],
+  },
+};
 
 export default async function Home() {
   const [issue, candidates] = await Promise.all([
@@ -16,8 +40,28 @@ export default async function Home() {
     getCandidateItems(6),
   ]);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: siteName,
+    url: absoluteUrl("/"),
+    description: defaultDescription,
+    publisher: {
+      "@type": "Organization",
+      name: siteName,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl(defaultImage.url),
+      },
+    },
+  };
+
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="border-b border-[#d9d4c8] bg-[#173f35] text-[#f8f7f2]">
         <div className="mx-auto grid min-h-[78vh] max-w-6xl content-end gap-12 px-6 pb-12 pt-10 md:grid-cols-[1.1fr_0.9fr] md:px-10">
           <div className="flex flex-col justify-end gap-7">

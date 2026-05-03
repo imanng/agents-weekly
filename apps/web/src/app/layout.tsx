@@ -1,10 +1,41 @@
 import type { Metadata } from "next";
+import {
+  defaultDescription,
+  defaultImage,
+  siteName,
+  siteUrl,
+} from "@/lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Agents Weekly",
-  description:
-    "A curated weekly briefing on AI agents, tools, engineering blogs, and research.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
+  description: defaultDescription,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: siteName,
+    description: defaultDescription,
+    url: "/",
+    siteName,
+    images: [defaultImage],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: siteName,
+    description: defaultDescription,
+    images: [defaultImage.url],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",

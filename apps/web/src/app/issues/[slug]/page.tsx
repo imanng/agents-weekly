@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   getAllIssues,
@@ -6,6 +7,13 @@ import {
   getOrderedIssueSections,
   getSectionTitle,
 } from "@/lib/issues";
+import {
+  absoluteUrl,
+  canonicalPath,
+  defaultDescription,
+  defaultImage,
+  siteName,
+} from "@/lib/seo";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -18,13 +26,41 @@ export async function generateStaticParams() {
   return issues.map((issue) => ({ slug: issue.slug }));
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const issue = await getIssueBySlug(slug);
+  const path = canonicalPath(`/issues/${slug}`);
+
+  if (!issue) {
+    return {
+      title: siteName,
+      description: defaultDescription,
+      alternates: {
+        canonical: path,
+      },
+    };
+  }
 
   return {
-    title: issue ? `${issue.title} | Agents Weekly` : "Agents Weekly",
-    description: issue?.summary,
+    title: issue.title,
+    description: issue.summary,
+    alternates: {
+      canonical: path,
+    },
+    openGraph: {
+      title: `${issue.title} | ${siteName}`,
+      description: issue.summary,
+      url: path,
+      siteName,
+      images: [defaultImage],
+      type: "article",
+      publishedTime: issue.publishedAt,
+    },
+    twitter: {
+      title: `${issue.title} | ${siteName}`,
+      description: issue.summary,
+      images: [defaultImage.url],
+    },
   };
 }
 
@@ -36,8 +72,33 @@ export default async function IssuePage({ params }: Props) {
     notFound();
   }
 
+  const issueUrl = absoluteUrl(`/issues/${issue.slug}`);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: issue.title,
+    description: issue.summary,
+    datePublished: issue.publishedAt,
+    dateModified: issue.publishedAt,
+    url: issueUrl,
+    mainEntityOfPage: issueUrl,
+    publisher: {
+      "@type": "Organization",
+      name: siteName,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl(defaultImage.url),
+      },
+    },
+    image: [absoluteUrl(defaultImage.url)],
+  };
+
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12 md:px-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <header className="border-b border-[#d9d4c8] pb-8">
         <div className="flex flex-wrap gap-4 text-sm font-semibold text-[#a25c24]">
           <Link className="underline-offset-4 hover:underline" href="/">

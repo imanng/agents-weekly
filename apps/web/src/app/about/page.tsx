@@ -1,7 +1,27 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { defaultImage } from "@/lib/seo";
 
-export const metadata = {
-  title: "About | Agents Weekly",
+const description =
+  "Learn how Agents Weekly curates AI agent releases, engineering writeups, research, and community discoveries.";
+
+export const metadata: Metadata = {
+  title: "About",
+  description,
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    title: "About | Agents Weekly",
+    description,
+    url: "/about",
+    images: [defaultImage],
+  },
+  twitter: {
+    title: "About | Agents Weekly",
+    description,
+    images: [defaultImage.url],
+  },
 };
 
 export default function AboutPage() {

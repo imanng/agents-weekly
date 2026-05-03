@@ -11,7 +11,8 @@
 		"enabled": true
 	},
 	"vars": {
-		"CRAWLER_API_URL": "https://agents-weekly-api.anng.dev"
+		"CRAWLER_API_URL": "https://agents-weekly-api.anng.dev",
+		"NEXT_PUBLIC_SITE_URL": "https://agents-weekly.anng.dev"
 	},
 	"assets": {
 		"directory": ".open-next/assets",

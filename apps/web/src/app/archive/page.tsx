@@ -1,8 +1,28 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getAllIssues } from "@/lib/issues";
+import { defaultImage } from "@/lib/seo";
 
-export const metadata = {
-  title: "Archive | Agents Weekly",
+const description =
+  "Browse the published archive of Agents Weekly briefings on AI agents, tools, research, and engineering practice.";
+
+export const metadata: Metadata = {
+  title: "Archive",
+  description,
+  alternates: {
+    canonical: "/archive",
+  },
+  openGraph: {
+    title: "Archive | Agents Weekly",
+    description,
+    url: "/archive",
+    images: [defaultImage],
+  },
+  twitter: {
+    title: "Archive | Agents Weekly",
+    description,
+    images: [defaultImage.url],
+  },
 };
 
 export const revalidate = 3600;
