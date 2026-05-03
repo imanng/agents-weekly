@@ -5,6 +5,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "agents-weekly-crawler",
+	"account_id": "58299f9a25e9feec6178ab51d0c1c842",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-05-02",
 	"observability": {
@@ -22,7 +23,13 @@
 	"kv_namespaces": [
 		{
 			"binding": "CANDIDATES_KV",
-			"id": "REPLACE_WITH_CANDIDATES_KV_NAMESPACE_ID"
+			"id": "d1fe5e7ce6204e4dbf9f42f6ea4373c5"
+		}
+	],
+	"routes": [
+		{
+			"pattern": "agents-weekly-api.anng.dev",
+			"custom_domain": true
 		}
 	]
 	/**

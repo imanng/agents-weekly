@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Agents Weekly",
   description:
     "A curated weekly briefing on AI agents, tools, engineering blogs, and research.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

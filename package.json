@@ -6,8 +6,9 @@
   "scripts": {
     "dev:web": "pnpm --filter @agents-weekly/web dev",
     "build:web": "pnpm --filter @agents-weekly/web build",
+    "deploy:web": "pnpm build:web && pnpm --filter @agents-weekly/crawler exec wrangler deploy --config ../web/wrangler.jsonc",
     "dev:crawler": "pnpm --filter @agents-weekly/crawler dev",
-    "deploy:crawler": "pnpm --filter @agents-weekly/crawler deploy",
+    "deploy:crawler": "pnpm --filter @agents-weekly/crawler run deploy",
     "lint": "pnpm --filter @agents-weekly/web lint",
     "typecheck": "pnpm --filter @agents-weekly/shared typecheck && pnpm --filter @agents-weekly/crawler typecheck"
   }

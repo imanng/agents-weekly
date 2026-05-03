@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getLatestIssue, getSectionTitle } from "@/lib/issues";
 
 const signupUrl = "https://www.beehiiv.com/";
@@ -11,9 +12,19 @@ export default function Home() {
       <section className="border-b border-[#d9d4c8] bg-[#173f35] text-[#f8f7f2]">
         <div className="mx-auto grid min-h-[78vh] max-w-6xl content-end gap-12 px-6 pb-12 pt-10 md:grid-cols-[1.1fr_0.9fr] md:px-10">
           <div className="flex flex-col justify-end gap-7">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#f5c95f]">
-              AI agents, edited weekly
-            </p>
+            <div className="flex items-center gap-4">
+              <Image
+                alt=""
+                className="h-14 w-14"
+                height={112}
+                priority
+                src="/brand/agents-weekly-logo-mark.png"
+                width={112}
+              />
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#f5c95f]">
+                AI agents, edited weekly
+              </p>
+            </div>
             <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] md:text-7xl">
               Agents Weekly
             </h1>
