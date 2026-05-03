@@ -1,14 +1,21 @@
 {
 	"$schema": "../../node_modules/wrangler/config-schema.json",
 	"name": "agents-weekly-web",
+	"main": ".open-next/worker.js",
 	"account_id": "58299f9a25e9feec6178ab51d0c1c842",
 	"compatibility_date": "2026-05-02",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"observability": {
 		"enabled": true
 	},
+	"vars": {
+		"CRAWLER_API_URL": "https://agents-weekly-api.anng.dev"
+	},
 	"assets": {
-		"directory": "./out",
-		"not_found_handling": "404-page"
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
 	},
 	"routes": [
 		{

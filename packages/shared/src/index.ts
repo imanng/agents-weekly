@@ -60,6 +60,85 @@ export type SourceDefinition = {
   tags: string[];
 };
 
+export const bundledIssues: Issue[] = [
+  {
+    slug: "welcome-to-agents-weekly",
+    issueNumber: 18,
+    title: "Agents Weekly #18: The practical agent stack",
+    publishedAt: "2026-05-02",
+    summary:
+      "A first editorial pass across agent infrastructure, coding tools, builder notes, and research threads worth watching.",
+    sections: {
+      "top-story": [
+        {
+          title: "Cloudflare Workers as agent infrastructure",
+          url: "https://blog.cloudflare.com/",
+          source: "Cloudflare Blog",
+          commentary:
+            "Edge runtimes, queues, and durable storage keep showing up in practical agent systems.",
+          category: "top-story",
+        },
+      ],
+      "tools-launches": [
+        {
+          title: "OpenAI Agents SDK releases",
+          url: "https://github.com/openai/openai-agents-python/releases",
+          source: "GitHub Releases",
+          commentary:
+            "Release feeds are a clean way to track agent framework changes without watching social feeds all day.",
+          category: "tools-launches",
+        },
+        {
+          title: "Claude Code and local agent workflows",
+          url: "https://www.anthropic.com/",
+          source: "Anthropic",
+          commentary:
+            "Coding agents are becoming the clearest wedge for durable agent adoption.",
+          category: "tools-launches",
+        },
+      ],
+      "engineering-blogs": [
+        {
+          title: "Between the Prompts",
+          url: "https://betweentheprompts.com/",
+          source: "Between the Prompts",
+          commentary:
+            "Builder essays help separate working agent patterns from launch-week noise.",
+          category: "engineering-blogs",
+        },
+      ],
+      research: [
+        {
+          title: "Tool use, evals, and memory",
+          url: "https://arxiv.org/",
+          source: "Research watch",
+          commentary:
+            "The crawler tracks agent-adjacent keywords so research links can enter the candidate pool for review.",
+          category: "research",
+        },
+      ],
+      "worth-your-time": [
+        {
+          title: "Hacker News technical discovery",
+          url: "https://news.ycombinator.com/",
+          source: "Hacker News",
+          commentary:
+            "Community traction is useful as a signal, but final inclusion stays editorial.",
+          category: "worth-your-time",
+        },
+      ],
+    },
+  },
+];
+
+export function getBundledIssues(): Issue[] {
+  return [...bundledIssues].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+}
+
+export function getBundledIssueBySlug(slug: string): Issue | undefined {
+  return bundledIssues.find((issue) => issue.slug === slug);
+}
+
 export const scoring = {
   officialBlog: 5,
   builderBlog: 4,

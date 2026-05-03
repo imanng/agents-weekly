@@ -5,8 +5,10 @@ export const metadata = {
   title: "Archive | Agents Weekly",
 };
 
-export default function ArchivePage() {
-  const issues = getAllIssues();
+export const revalidate = 3600;
+
+export default async function ArchivePage() {
+  const issues = await getAllIssues();
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12 md:px-10">

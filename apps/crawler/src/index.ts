@@ -1,6 +1,8 @@
 import {
 	type CandidateItem,
 	type SourceDefinition,
+	getBundledIssueBySlug,
+	getBundledIssues,
 	getSourceBaseScore,
 	hasStrongKeyword,
 	scoring,
@@ -17,26 +19,56 @@ type RawCandidate = Omit<CandidateItem, "id" | "score"> & {
 
 const latestIndexKey = "candidates:latest";
 const maxStoredCandidates = 250;
+const allowedCorsOrigins = new Set([
+	"https://agents-weekly.anng.dev",
+	"http://localhost:3000",
+	"http://127.0.0.1:3000",
+]);
 
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
 
-		if (url.pathname === "/api/news") {
+		if (request.method === "OPTIONS" && isCorsRoute(url.pathname)) {
+			return corsPreflight(request);
+		}
+
+		if (url.pathname === "/news") {
 			const limit = clampLimit(url.searchParams.get("limit"));
 			const items = await readLatestCandidates(env as CrawlerEnv, limit);
-			return json({ items, generatedAt: new Date().toISOString() });
+			return json(request, { items, generatedAt: new Date().toISOString() });
+		}
+
+		if (url.pathname === "/issues") {
+			return json(request, {
+				items: getBundledIssues(),
+				generatedAt: new Date().toISOString(),
+			});
+		}
+
+		const issueMatch = url.pathname.match(/^\/issues\/([^/]+)$/);
+		if (issueMatch) {
+			const issue = getBundledIssueBySlug(decodeURIComponent(issueMatch[1]));
+			if (!issue) {
+				return json(request, { error: "Issue not found" }, 404);
+			}
+
+			return json(request, {
+				item: issue,
+				generatedAt: new Date().toISOString(),
+			});
 		}
 
 		if (url.pathname === "/__scheduled") {
 			const items = await crawlAndStore(env as CrawlerEnv);
-			return json({ stored: items.length, generatedAt: new Date().toISOString() });
+			return json(request, { stored: items.length, generatedAt: new Date().toISOString() });
 		}
 
 		return json(
+			request,
 			{
 				name: "agents-weekly-crawler",
-				endpoints: ["/api/news", "/__scheduled"],
+				endpoints: ["/news", "/issues", "/issues/:slug", "/__scheduled"],
 			},
 			200,
 		);
@@ -306,14 +338,44 @@ async function fetchText(url: string): Promise<string> {
 	return response.text();
 }
 
-function json(payload: unknown, status = 200): Response {
+function json(request: Request, payload: unknown, status = 200): Response {
 	return new Response(JSON.stringify(payload, null, 2), {
 		status,
 		headers: {
 			"content-type": "application/json; charset=utf-8",
 			"cache-control": "no-store",
+			...corsHeaders(request),
 		},
 	});
+}
+
+function corsPreflight(request: Request): Response {
+	return new Response(null, {
+		status: 204,
+		headers: {
+			...corsHeaders(request),
+			"access-control-allow-methods": "GET, OPTIONS",
+			"access-control-allow-headers": "content-type",
+			"access-control-max-age": "86400",
+		},
+	});
+}
+
+function corsHeaders(request: Request): HeadersInit {
+	const origin = request.headers.get("origin");
+	const headers: Record<string, string> = {
+		vary: "Origin",
+	};
+
+	if (origin && allowedCorsOrigins.has(origin)) {
+		headers["access-control-allow-origin"] = origin;
+	}
+
+	return headers;
+}
+
+function isCorsRoute(pathname: string): boolean {
+	return pathname === "/news" || pathname === "/issues" || pathname.startsWith("/issues/");
 }
 
 function tagValue(input: string, tag: string): string | undefined {

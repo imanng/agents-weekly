@@ -7,13 +7,16 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export function generateStaticParams() {
-  return getAllIssues().map((issue) => ({ slug: issue.slug }));
+export const revalidate = 3600;
+
+export async function generateStaticParams() {
+  const issues = await getAllIssues();
+  return issues.map((issue) => ({ slug: issue.slug }));
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const issue = getIssueBySlug(slug);
+  const issue = await getIssueBySlug(slug);
 
   return {
     title: issue ? `${issue.title} | Agents Weekly` : "Agents Weekly",
@@ -23,7 +26,7 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function IssuePage({ params }: Props) {
   const { slug } = await params;
-  const issue = getIssueBySlug(slug);
+  const issue = await getIssueBySlug(slug);
 
   if (!issue) {
     notFound();

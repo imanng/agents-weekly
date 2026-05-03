@@ -1,11 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getLatestIssue, getSectionTitle } from "@/lib/issues";
+import { getCandidateItems, getLatestIssue, getSectionTitle } from "@/lib/issues";
 
 const signupUrl = "https://www.beehiiv.com/";
+export const revalidate = 3600;
 
-export default function Home() {
-  const issue = getLatestIssue();
+export default async function Home() {
+  const [issue, candidates] = await Promise.all([
+    getLatestIssue(),
+    getCandidateItems(6),
+  ]);
 
   return (
     <main>
@@ -113,6 +117,48 @@ export default function Home() {
                   ))}
                 </div>
               </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {candidates.length > 0 ? (
+        <section className="mx-auto max-w-6xl border-t border-[#ded8ca] px-6 py-14 md:px-10">
+          <div className="mb-8 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#a25c24]">
+                Crawler discoveries
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">Live candidate pool</h2>
+            </div>
+            <p className="text-sm font-semibold text-[#67736e]">
+              Scored from production crawler data
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {candidates.map((item) => (
+              <article
+                className="rounded-lg border border-[#ded8ca] bg-white p-5"
+                key={item.id}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#67736e]">
+                  {item.category} / {item.source}
+                </p>
+                <a
+                  className="mt-3 block font-semibold text-[#173f35] underline-offset-4 hover:underline"
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  {item.title}
+                </a>
+                {item.summary ? (
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#5f6a64]">
+                    {item.summary}
+                  </p>
+                ) : null}
+              </article>
             ))}
           </div>
         </section>

@@ -22,15 +22,14 @@ export default function AboutPage() {
           human-edited weekly issue.
         </p>
         <p>
-          The crawler is used for discovery, not autopublishing. Official blogs
-          and builder essays receive more weight than community traction, while
-          Hacker News and Reddit help surface links that may deserve a closer
-          editorial look.
+          The crawler is the site&apos;s source of truth for published issues
+          and discovery data. Official blogs and builder essays receive more
+          weight than community traction, while Hacker News and Reddit help
+          surface links that may deserve a closer editorial look.
         </p>
         <p>
-          The public site is static by design: fast to load, inexpensive to
-          host, and simple enough to keep the editorial workflow focused on the
-          issue itself.
+          The public site uses cached crawler responses so pages stay fast while
+          the underlying issue and candidate data can refresh on a schedule.
         </p>
       </div>
     </main>
