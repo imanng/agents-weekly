@@ -1,4 +1,9 @@
-import type { CandidateItem, Issue, IssueSection } from "@agents-weekly/shared";
+import type {
+  CandidateItem,
+  Issue,
+  IssueItem,
+  IssueSection,
+} from "@agents-weekly/shared";
 import { crawlerApiUrl, crawlerNewsUrl } from "@/lib/env";
 
 const revalidateSeconds = 60 * 60;
@@ -17,14 +22,22 @@ type CandidatesResponse = {
 
 const titleBySection: Record<IssueSection, string> = {
   "top-story": "Top story",
-  "tools-launches": "Tools & launches",
   "engineering-blogs": "Engineering blogs",
-  research: "Research",
   "worth-your-time": "Worth your time",
+  research: "Research",
+  "tools-launches": "Tools launches",
 };
+
+const orderedSections = Object.keys(titleBySection) as IssueSection[];
 
 export function getSectionTitle(section: IssueSection): string {
   return titleBySection[section];
+}
+
+export function getOrderedIssueSections(
+  sections: Issue["sections"],
+): Array<[IssueSection, IssueItem[]]> {
+  return orderedSections.map((section) => [section, sections[section] ?? []]);
 }
 
 export async function getAllIssues(): Promise<Issue[]> {

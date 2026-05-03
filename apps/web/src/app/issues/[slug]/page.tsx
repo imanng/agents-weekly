@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAllIssues, getIssueBySlug, getSectionTitle } from "@/lib/issues";
-import type { IssueSection } from "@agents-weekly/shared";
+import {
+  getAllIssues,
+  getIssueBySlug,
+  getOrderedIssueSections,
+  getSectionTitle,
+} from "@/lib/issues";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -55,7 +59,7 @@ export default async function IssuePage({ params }: Props) {
       </header>
 
       <div className="py-8">
-        {Object.entries(issue.sections).map(([section, items]) => {
+        {getOrderedIssueSections(issue.sections).map(([section, items]) => {
           if (items.length === 0) return null;
 
           return (
@@ -64,7 +68,7 @@ export default async function IssuePage({ params }: Props) {
               key={section}
             >
               <h2 className="text-2xl font-semibold">
-                {getSectionTitle(section as IssueSection)}
+                {getSectionTitle(section)}
               </h2>
               <div className="mt-5 space-y-5">
                 {items.map((item) => (
@@ -80,7 +84,7 @@ export default async function IssuePage({ params }: Props) {
                     <p className="mt-2 text-sm font-semibold text-[#67736e]">
                       {item.source}
                     </p>
-                    <p className="mt-3 leading-7 text-[#4e5954]">
+                    <p className="mt-3 leading-7 text-[#4e5954] line-clamp-5">
                       {item.commentary}
                     </p>
                   </article>

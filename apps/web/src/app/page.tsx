@@ -1,6 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getCandidateItems, getLatestIssue, getSectionTitle } from "@/lib/issues";
+import {
+  getCandidateItems,
+  getLatestIssue,
+  getOrderedIssueSections,
+  getSectionTitle,
+} from "@/lib/issues";
 
 const signupUrl = "https://www.beehiiv.com/";
 export const revalidate = 3600;
@@ -91,13 +96,13 @@ export default async function Home() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {Object.entries(issue.sections).map(([section, items]) => (
+            {getOrderedIssueSections(issue.sections).map(([section, items]) => (
               <section
                 className="rounded-lg border border-[#ded8ca] bg-white p-5"
                 key={section}
               >
                 <h3 className="text-lg font-semibold">
-                  {getSectionTitle(section as keyof typeof issue.sections)}
+                  {getSectionTitle(section)}
                 </h3>
                 <div className="mt-4 space-y-4">
                   {items.slice(0, 2).map((item) => (

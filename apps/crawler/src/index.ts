@@ -1,29 +1,34 @@
 import {
 	type CandidateItem,
+	type Issue,
 	type SourceDefinition,
-	getBundledIssueBySlug,
-	getBundledIssues,
-	getSourceBaseScore,
-	hasStrongKeyword,
-	scoring,
 	sources,
 } from "@agents-weekly/shared";
+import {
+	latestIndexKey,
+	latestIssuesIndexKey,
+	maxStoredCandidates,
+	maxStoredIssues,
+} from "./constants";
+import {
+	buildWeeklyIssue,
+	clampLimit,
+	corsPreflight,
+	dedupeCandidates,
+	fetchJson,
+	fetchText,
+	isCorsRoute,
+	json,
+	normalizeCandidate,
+	sortCandidates,
+	stripHtml,
+	stripMarkdown,
+	tagValue,
+} from "./utils";
 
 type CrawlerEnv = Env & {
 	CANDIDATES_KV: KVNamespace;
 };
-
-type RawCandidate = Omit<CandidateItem, "id" | "score"> & {
-	score?: number;
-};
-
-const latestIndexKey = "candidates:latest";
-const maxStoredCandidates = 250;
-const allowedCorsOrigins = new Set([
-	"https://agents-weekly.anng.dev",
-	"http://localhost:3000",
-	"http://127.0.0.1:3000",
-]);
 
 export default {
 	async fetch(request, env) {
@@ -41,14 +46,15 @@ export default {
 
 		if (url.pathname === "/issues") {
 			return json(request, {
-				items: getBundledIssues(),
+				items: await readIssues(env as CrawlerEnv),
 				generatedAt: new Date().toISOString(),
 			});
 		}
 
 		const issueMatch = url.pathname.match(/^\/issues\/([^/]+)$/);
 		if (issueMatch) {
-			const issue = getBundledIssueBySlug(decodeURIComponent(issueMatch[1]));
+			const slug = decodeURIComponent(issueMatch[1]);
+			const issue = await readIssueBySlug(env as CrawlerEnv, slug);
 			if (!issue) {
 				return json(request, { error: "Issue not found" }, 404);
 			}
@@ -76,14 +82,17 @@ export default {
 
 	async scheduled(event, env, ctx): Promise<void> {
 		ctx.waitUntil(
-			crawlAndStore(env as CrawlerEnv).then((items) => {
+			crawlAndStore(env as CrawlerEnv, new Date(event.scheduledTime)).then((items) => {
 				console.log(`cron ${event.cron} stored ${items.length} candidates`);
 			}),
 		);
 	},
 } satisfies ExportedHandler<CrawlerEnv>;
 
-async function crawlAndStore(env: CrawlerEnv): Promise<CandidateItem[]> {
+async function crawlAndStore(
+	env: CrawlerEnv,
+	generatedAt = new Date(),
+): Promise<CandidateItem[]> {
 	const batches = await Promise.allSettled(sources.map((source) => crawlSource(source)));
 	const discovered = batches.flatMap((batch) =>
 		batch.status === "fulfilled" ? batch.value : [],
@@ -104,8 +113,43 @@ async function crawlAndStore(env: CrawlerEnv): Promise<CandidateItem[]> {
 		latestIndexKey,
 		JSON.stringify(merged.map((item) => item.id)),
 	);
+	if (merged.length > 0) {
+		await storeWeeklyIssue(env, buildWeeklyIssue(merged, generatedAt));
+	}
 
 	return merged;
+}
+
+async function storeWeeklyIssue(env: CrawlerEnv, issue: Issue): Promise<void> {
+	const existingSlugs = (await env.CANDIDATES_KV.get<string[]>(latestIssuesIndexKey, "json")) ?? [];
+	const slugs = [issue.slug, ...existingSlugs.filter((slug) => slug !== issue.slug)].slice(
+		0,
+		maxStoredIssues,
+	);
+
+	await env.CANDIDATES_KV.put(`issue:${issue.slug}`, JSON.stringify(issue));
+	await env.CANDIDATES_KV.put(latestIssuesIndexKey, JSON.stringify(slugs));
+}
+
+async function readIssues(env: CrawlerEnv): Promise<Issue[]> {
+	const generatedSlugs = (await env.CANDIDATES_KV.get<string[]>(latestIssuesIndexKey, "json")) ?? [];
+	const generatedIssues = await Promise.all(
+		generatedSlugs.map((slug) => env.CANDIDATES_KV.get<Issue>(`issue:${slug}`, "json")),
+	);
+	const issues = generatedIssues.filter((issue): issue is Issue => Boolean(issue));
+	const bySlug = new Map<string, Issue>();
+
+	for (const issue of issues) {
+		if (!bySlug.has(issue.slug)) {
+			bySlug.set(issue.slug, issue);
+		}
+	}
+
+	return [...bySlug.values()].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+}
+
+async function readIssueBySlug(env: CrawlerEnv, slug: string): Promise<Issue | undefined> {
+	return (await env.CANDIDATES_KV.get<Issue>(`issue:${slug}`, "json")) ?? undefined;
 }
 
 async function crawlSource(source: SourceDefinition): Promise<CandidateItem[]> {
@@ -235,67 +279,6 @@ async function crawlGithubReleases(source: SourceDefinition): Promise<CandidateI
 	);
 }
 
-async function normalizeCandidate(
-	source: SourceDefinition,
-	input: {
-		title?: string;
-		url?: string;
-		publishedAt?: string;
-		summary?: string;
-		author?: string;
-		discoveredVia?: string[];
-		scoreBoost?: number;
-	},
-): Promise<CandidateItem> {
-	const url = canonicalUrl(input.url || source.url);
-	const title = decodeEntities(input.title || url);
-	const summary = input.summary ? decodeEntities(input.summary) : undefined;
-	const textForScore = `${title} ${summary ?? ""} ${source.tags.join(" ")}`;
-	const score =
-		getSourceBaseScore(source) +
-		(hasStrongKeyword(textForScore) ? scoring.strongKeyword : 0) +
-		(input.scoreBoost ?? 0);
-
-	return {
-		id: await hashUrl(url),
-		title,
-		url,
-		source: source.name,
-		discoveredVia: input.discoveredVia ?? [source.kind],
-		category: source.category,
-		publishedAt: normalizeDate(input.publishedAt),
-		summary,
-		score,
-		author: input.author,
-		tags: source.tags,
-	};
-}
-
-function dedupeCandidates(items: CandidateItem[]): CandidateItem[] {
-	const byUrl = new Map<string, CandidateItem>();
-
-	for (const item of items) {
-		const key = canonicalUrl(item.url);
-		const existing = byUrl.get(key);
-		if (!existing) {
-			byUrl.set(key, item);
-			continue;
-		}
-
-		byUrl.set(key, {
-			...existing,
-			score: Math.max(existing.score ?? 0, item.score ?? 0),
-			discoveredVia: [...new Set([...(existing.discoveredVia ?? []), ...(item.discoveredVia ?? [])])],
-			publishedAt:
-				item.publishedAt.localeCompare(existing.publishedAt) > 0
-					? item.publishedAt
-					: existing.publishedAt,
-		});
-	}
-
-	return [...byUrl.values()];
-}
-
 async function readLatestCandidates(
 	env: CrawlerEnv,
 	limit: number,
@@ -308,130 +291,4 @@ async function readLatestCandidates(
 	);
 
 	return items.filter((item): item is CandidateItem => Boolean(item));
-}
-
-function sortCandidates(a: CandidateItem, b: CandidateItem): number {
-	const scoreDelta = (b.score ?? 0) - (a.score ?? 0);
-	if (scoreDelta !== 0) return scoreDelta;
-	return b.publishedAt.localeCompare(a.publishedAt);
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-	const response = await fetch(url, {
-		headers: {
-			"accept": "application/json",
-			"user-agent": "AgentsWeeklyCrawler/0.1 (+https://agents-weekly.example)",
-		},
-	});
-	if (!response.ok) throw new Error(`fetch failed ${response.status}: ${url}`);
-	return response.json<T>();
-}
-
-async function fetchText(url: string): Promise<string> {
-	const response = await fetch(url, {
-		headers: {
-			"accept": "application/rss+xml, application/xml, text/xml, text/plain",
-			"user-agent": "AgentsWeeklyCrawler/0.1 (+https://agents-weekly.example)",
-		},
-	});
-	if (!response.ok) throw new Error(`fetch failed ${response.status}: ${url}`);
-	return response.text();
-}
-
-function json(request: Request, payload: unknown, status = 200): Response {
-	return new Response(JSON.stringify(payload, null, 2), {
-		status,
-		headers: {
-			"content-type": "application/json; charset=utf-8",
-			"cache-control": "no-store",
-			...corsHeaders(request),
-		},
-	});
-}
-
-function corsPreflight(request: Request): Response {
-	return new Response(null, {
-		status: 204,
-		headers: {
-			...corsHeaders(request),
-			"access-control-allow-methods": "GET, OPTIONS",
-			"access-control-allow-headers": "content-type",
-			"access-control-max-age": "86400",
-		},
-	});
-}
-
-function corsHeaders(request: Request): HeadersInit {
-	const origin = request.headers.get("origin");
-	const headers: Record<string, string> = {
-		vary: "Origin",
-	};
-
-	if (origin && allowedCorsOrigins.has(origin)) {
-		headers["access-control-allow-origin"] = origin;
-	}
-
-	return headers;
-}
-
-function isCorsRoute(pathname: string): boolean {
-	return pathname === "/news" || pathname === "/issues" || pathname.startsWith("/issues/");
-}
-
-function tagValue(input: string, tag: string): string | undefined {
-	const match = input.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-	return match ? decodeEntities(stripCdata(match[1]).trim()) : undefined;
-}
-
-function stripCdata(input: string): string {
-	return input.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "");
-}
-
-function stripHtml(input: string | undefined): string | undefined {
-	if (!input) return undefined;
-	return decodeEntities(input.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
-}
-
-function stripMarkdown(input: string): string {
-	return input.replace(/[`#*_>\-[\]()]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function decodeEntities(input: string): string {
-	return input
-		.replace(/&amp;/g, "&")
-		.replace(/&lt;/g, "<")
-		.replace(/&gt;/g, ">")
-		.replace(/&quot;/g, '"')
-		.replace(/&#39;/g, "'")
-		.trim();
-}
-
-function normalizeDate(input: string | undefined): string {
-	if (!input) return new Date().toISOString();
-	const date = new Date(input);
-	return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-}
-
-function canonicalUrl(input: string): string {
-	const url = new URL(input);
-	url.hash = "";
-	for (const param of ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]) {
-		url.searchParams.delete(param);
-	}
-	return url.toString();
-}
-
-async function hashUrl(url: string): Promise<string> {
-	const data = new TextEncoder().encode(url);
-	const digest = await crypto.subtle.digest("SHA-256", data);
-	return [...new Uint8Array(digest)]
-		.map((byte) => byte.toString(16).padStart(2, "0"))
-		.join("")
-		.slice(0, 24);
-}
-
-function clampLimit(value: string | null): number {
-	const parsed = Number(value || 50);
-	if (!Number.isFinite(parsed)) return 50;
-	return Math.max(1, Math.min(100, Math.floor(parsed)));
 }
