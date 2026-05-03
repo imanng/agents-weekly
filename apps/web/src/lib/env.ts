@@ -1,7 +1,6 @@
 export const crawlerApiUrl = trimTrailingSlash(
-  process.env.CRAWLER_API_URL || "https://agents-weekly-api.anng.dev",
+  process.env.CRAWLER_API_URL || "",
 );
-
 if (!crawlerApiUrl) {
   throw new Error("CRAWLER_API_URL is not set");
 }
